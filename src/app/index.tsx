@@ -1,23 +1,38 @@
 import React, { useState } from "react";
 import {
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter, useSegments } from "expo-router";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAuthStore } from "@/stores/auth";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const router = useRouter();
+  const { login, isLoading, error, clearError } = useAuthStore();
+
+  const handleLogin = async () => {
+    try {
+      clearError();
+      await login({ username, password });
+      // @ts-ignore
+      router.replace("(tabs)");
+    } catch (err) {
+      // Error is handled by store
+    }
+  };
 
   const containerPadding = Platform.select({
     web: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.six },
@@ -37,109 +52,55 @@ export default function LoginScreen() {
       <ThemedView style={styles.container}>
         {/* Header Section */}
         <ThemedView style={styles.headerSection}>
+          <ThemedText style={styles.logo}>TriTrack</ThemedText>
           <ThemedText type="title" style={styles.title}>
-            Welcome
+            TRITRACK
           </ThemedText>
           <ThemedText
             type="subtitle"
             themeColor="textSecondary"
             style={styles.subtitle}
           >
-            Sign in to your account
+            Twój cel: Iron Man
           </ThemedText>
         </ThemedView>
 
+        {/* Error Message */}
+        {error && (
+          <ThemedView style={[styles.errorContainer, { backgroundColor: '#FF6B6B' }]}>
+            <ThemedText style={styles.errorText}>{error}</ThemedText>
+          </ThemedView>
+        )}
+
         {/* Form Section */}
         <ThemedView style={styles.formSection}>
-          {/* Email Input */}
-          <ThemedView style={styles.inputContainer}>
-            <ThemedText type="default" style={styles.label}>
-              Email
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  borderColor: theme.backgroundSelected,
-                  color: theme.text,
-                  backgroundColor: theme.backgroundElement,
-                },
-              ]}
-              placeholder="your@email.com"
-              placeholderTextColor={theme.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              editable={true}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-            />
-          </ThemedView>
+          <Input
+            label="Login"
+            placeholder="admin"
+            value={username}
+            onChangeText={setUsername}
+          />
 
-          {/* Password Input */}
-          <ThemedView style={styles.inputContainer}>
-            <ThemedText type="default" style={styles.label}>
-              Password
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  borderColor: theme.backgroundSelected,
-                  color: theme.text,
-                  backgroundColor: theme.backgroundElement,
-                },
-              ]}
-              placeholder="••••••••"
-              placeholderTextColor={theme.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              editable={true}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="password"
-            />
-          </ThemedView>
+          <Input
+            label="Hasło"
+            placeholder="••••••••"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
-          {/* Login Button */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.loginButton,
-              {
-                backgroundColor: theme.text,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <ThemedText
-              type="default"
-              style={[styles.loginButtonText, { color: theme.background }]}
-            >
-              Sign In
-            </ThemedText>
-          </Pressable>
-
-          {/* Forgot Password Link */}
-          <Pressable style={styles.forgotPasswordContainer}>
-            <ThemedText type="small" style={styles.forgotPassword}>
-              Forgot password?
-            </ThemedText>
-          </Pressable>
+          <Button
+            title="Zaloguj"
+            onPress={handleLogin}
+            loading={isLoading}
+            variant="primary"
+          />
         </ThemedView>
 
-        {/* Footer Section */}
-        <ThemedView style={styles.footerSection}>
-          <ThemedText
-            type="small"
-            themeColor="textSecondary"
-            style={styles.footerText}
-          >
-            Don't have an account?{" "}
-            <ThemedText type="small" style={styles.signUpLink}>
-              Sign up
-            </ThemedText>
+        {/* Help Text */}
+        <ThemedView style={styles.helpSection}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.helpText}>
+            Demo: login: admin, hasło: admin
           </ThemedText>
         </ThemedView>
       </ThemedView>
@@ -156,7 +117,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   container: {
-    gap: Spacing.six,
+    gap: Spacing.four,
     maxWidth: 400,
     alignSelf: "center",
     width: "100%",
@@ -166,55 +127,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: Spacing.two,
   },
+  logo: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1DB954",
+  },
   title: {
     textAlign: "center",
+    fontSize: 32,
   },
   subtitle: {
     textAlign: "center",
+    fontSize: 16,
   },
   formSection: {
-    gap: Spacing.four,
+    gap: Spacing.three,
   },
-  inputContainer: {
-    gap: Spacing.one,
+  errorContainer: {
+    padding: Spacing.three,
+    borderRadius: 8,
+    marginBottom: Spacing.two,
   },
-  label: {
+  errorText: {
+    color: "#ffffff",
     fontWeight: "600",
   },
-  input: {
-    borderWidth: 1,
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  loginButton: {
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.two,
+  helpSection: {
     alignItems: "center",
-    justifyContent: "center",
     marginTop: Spacing.two,
   },
-  loginButtonText: {
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  forgotPasswordContainer: {
-    alignItems: "center",
-    marginTop: Spacing.one,
-  },
-  forgotPassword: {
-    color: "#999",
-  },
-  footerSection: {
-    alignItems: "center",
-    marginTop: Spacing.four,
-  },
-  footerText: {
+  helpText: {
     textAlign: "center",
-  },
-  signUpLink: {
-    fontWeight: "600",
+    fontSize: 12,
   },
 });
