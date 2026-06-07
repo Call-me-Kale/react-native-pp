@@ -1,26 +1,29 @@
-import { StyleSheet, ScrollView, Platform, View } from 'react-native';
+import { StyleSheet, ScrollView, Platform, View, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TrainingTypeButton } from '@/components/ui/training-type-button';
 import { Spacing } from '@/constants/theme';
 import { useState } from 'react';
+import { apiService } from '@/services/api';
 
 export default function AddEntryScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const router = useRouter();
   const [trainingType, setTrainingType] = useState<'swimming' | 'cycling' | 'running'>('running');
+  const [title, setTitle] = useState('');
   const [duration, setDuration] = useState('');
   const [distance, setDistance] = useState('');
   const [calories, setCalories] = useState('');
   const [heartRate, setHeartRate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const containerPadding = Platform.select({
     web: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.three },
@@ -31,9 +34,31 @@ export default function AddEntryScreen() {
     },
   });
 
-  const handleSave = () => {
-    // TODO: Save entry to API when implemented
-    router.back();
+  const handleSave = async () => {
+    if (!duration || !distance) {
+      Alert.alert('Błąd', 'Proszę podać czas i dystans treningu.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await apiService.createTrainingEntry({
+        type: trainingType,
+        title: title || `${trainingType.charAt(0).toUpperCase() + trainingType.slice(1)} Training`,
+        date: new Date().toISOString(),
+        duration: parseInt(duration, 10),
+        distance: parseFloat(distance),
+        calories: parseInt(calories, 10) || 0,
+        avgHeartRate: parseInt(heartRate, 10) || 0,
+        notes: notes,
+      });
+      router.back();
+    } catch (error) {
+      console.error('Failed to save training:', error);
+      Alert.alert('Błąd', 'Nie udało się zapisać treningu. Spróbuj ponownie.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -78,8 +103,8 @@ export default function AddEntryScreen() {
           <ThemedText style={styles.sectionTitle}>Nazwa aktywności</ThemedText>
           <Input
             placeholder="Np. Poranny rozruch"
-            value={duration}
-            onChangeText={setDuration}
+            value={title}
+            onChangeText={setTitle}
           />
         </ThemedView>
 
@@ -87,10 +112,10 @@ export default function AddEntryScreen() {
         <ThemedView style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Czas treningu (minuty)</ThemedText>
           <Input
-            placeholder="hh:mm:ss"
+            placeholder="60"
             value={duration}
             onChangeText={setDuration}
-            keyboardType="decimal-pad"
+            keyboardType="numeric"
           />
         </ThemedView>
 
@@ -132,8 +157,8 @@ export default function AddEntryScreen() {
           <ThemedText style={styles.sectionTitle}>Notatki</ThemedText>
           <Input
             placeholder="Dodaj notatki do treningu..."
-            value={distance}
-            onChangeText={setDistance}
+            value={notes}
+            onChangeText={setNotes}
             multiline
             numberOfLines={4}
           />
@@ -142,9 +167,10 @@ export default function AddEntryScreen() {
         {/* Actions */}
         <ThemedView style={styles.actions}>
           <Button
-            title="Zapisz"
+            title={isSaving ? "Zapisywanie..." : "Zapisz"}
             onPress={handleSave}
             variant="primary"
+            disabled={isSaving}
           />
           <Button
             title="Anuluj"
@@ -152,6 +178,7 @@ export default function AddEntryScreen() {
               router.back();
             }}
             variant="secondary"
+            disabled={isSaving}
           />
         </ThemedView>
       </ThemedView>

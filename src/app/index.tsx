@@ -100,7 +100,7 @@ export default function LoginScreen() {
         {/* Help Text */}
         <ThemedView style={styles.helpSection}>
           <ThemedText type="small" themeColor="textSecondary" style={styles.helpText}>
-            Demo: login: admin, hasło: admin
+            Demo: login: test, hasło: password
           </ThemedText>
         </ThemedView>
       </ThemedView>

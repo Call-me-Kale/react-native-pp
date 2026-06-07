@@ -1,6 +1,7 @@
-import { StyleSheet, ScrollView, Platform } from 'react-native';
+import { StyleSheet, ScrollView, Platform, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useEffect, useState, useCallback } from 'react';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -9,11 +10,48 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ActivityItem } from '@/components/ui/activity-item';
 import { Spacing } from '@/constants/theme';
+import { apiService, TrainingEntry, TrainingStats } from '@/services/api';
+import { useAuthStore } from '@/stores/auth';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const router = useRouter();
+  const { user } = useAuthStore();
+
+  const [stats, setStats] = useState<TrainingStats | null>(null);
+  const [latestTraining, setLatestTraining] = useState<TrainingEntry | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [statsData, entries] = await Promise.all([
+        apiService.getTrainingStats(),
+        apiService.getTrainingEntries(undefined, 1),
+      ]);
+      setStats(statsData);
+      if (entries.length > 0) {
+        setLatestTraining(entries[0]);
+      } else {
+        setLatestTraining(null);
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData])
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  }, [fetchData]);
 
   const containerPadding = Platform.select({
     web: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.three },
@@ -24,17 +62,31 @@ export default function HomeScreen() {
     },
   });
 
+  const formatDuration = (mins: number) => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h > 0 ? `${h}h ` : ''}${m}m`;
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pl-PL', { weekday: 'long', hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <ScrollView
       style={[styles.scrollView, { backgroundColor: theme.background }]}
       contentContainerStyle={[styles.scrollContent, containerPadding]}
-      bounces={false}
+      bounces={true}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
       <ThemedView style={styles.container}>
         {/* Header */}
         <ThemedView style={styles.header}>
           <ThemedView style={styles.headerContent}>
-            <ThemedText style={styles.greeting}>Cześć, Zawodnikul</ThemedText>
+            <ThemedText style={styles.greeting}>Cześć, {user?.username || 'Zawodnik'}!</ThemedText>
             <ThemedText type="subtitle" themeColor="textSecondary">
               Gotowy na kolejny trening?
             </ThemedText>
@@ -49,34 +101,46 @@ export default function HomeScreen() {
           <ThemedView style={styles.statsGrid}>
             <ThemedView style={styles.statItem}>
               <ThemedText type="small" themeColor="textSecondary">
-                DYSTANS
+                DYSTANS (DZIŚ)
               </ThemedText>
-              <ThemedText style={styles.statValue}>124.5 km</ThemedText>
+              <ThemedText style={styles.statValue}>
+                {stats?.todayDistance.toFixed(1) || '0.0'} km
+              </ThemedText>
             </ThemedView>
             <ThemedView style={styles.statItem}>
               <ThemedText type="small" themeColor="textSecondary">
-                KALORIE
+                KALORIE (DZIŚ)
               </ThemedText>
-              <ThemedText style={styles.statValue}>4 520 kcal</ThemedText>
+              <ThemedText style={styles.statValue}>
+                {stats?.todayCalories.toLocaleString() || '0'} kcal
+              </ThemedText>
             </ThemedView>
           </ThemedView>
         </Card>
 
         {/* Ostatni training */}
         <ThemedView style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Ostatni training</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.viewMore}>
-            Wczoras, 17:30
-          </ThemedText>
+          <ThemedText style={styles.sectionTitle}>Ostatni trening</ThemedText>
+          {latestTraining && (
+            <ThemedText type="small" themeColor="textSecondary" style={styles.viewMore}>
+              {formatDate(latestTraining.date)}
+            </ThemedText>
+          )}
         </ThemedView>
 
-        <ActivityItem
-          icon="🚴"
-          title="Rower szosowy"
-          distance="45.2 km"
-          time="01:36:25"
-          date="Wczoras, 17:30"
-        />
+        {latestTraining ? (
+          <ActivityItem
+            icon={latestTraining.type === 'swimming' ? '🏊' : latestTraining.type === 'cycling' ? '🚴' : '🏃'}
+            title={latestTraining.title || (latestTraining.type.charAt(0).toUpperCase() + latestTraining.type.slice(1))}
+            distance={`${latestTraining.distance} km`}
+            time={formatDuration(latestTraining.duration)}
+            date={formatDate(latestTraining.date)}
+          />
+        ) : (
+          <Card>
+            <ThemedText themeColor="textSecondary">Brak zarejestrowanych treningów.</ThemedText>
+          </Card>
+        )}
 
         {/* Quick Actions */}
         <ThemedView style={styles.section}>

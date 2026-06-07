@@ -1,15 +1,39 @@
-import { StyleSheet, ScrollView, Platform, View } from 'react-native';
+import { StyleSheet, ScrollView, Platform, View, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useEffect, useState, useCallback } from 'react';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { Card } from '@/components/ui/card';
 import { Spacing } from '@/constants/theme';
+import { apiService, TrainingStats } from '@/services/api';
 
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const [stats, setStats] = useState<TrainingStats | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Use the existing apiService functionality
+  const fetchStats = useCallback(async () => {
+    try {
+      const statsData = await apiService.getTrainingStats();
+      setStats(statsData);
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchStats();
+    setRefreshing(false);
+  }, [fetchStats]);
 
   const containerPadding = Platform.select({
     web: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.three },
@@ -20,11 +44,22 @@ export default function StatsScreen() {
     },
   });
 
+  const getPercentage = (count: number) => {
+    const total = (stats?.trainingsByType.swimming || 0) + 
+                  (stats?.trainingsByType.cycling || 0) + 
+                  (stats?.trainingsByType.running || 0);
+    if (total === 0) return 0;
+    return Math.round((count / total) * 100);
+  };
+
   return (
     <ScrollView
       style={[styles.scrollView, { backgroundColor: theme.background }]}
       contentContainerStyle={[styles.scrollContent, containerPadding]}
-      bounces={false}
+      bounces={true}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
       <ThemedView style={styles.container}>
         {/* Header */}
@@ -39,9 +74,11 @@ export default function StatsScreen() {
               <ThemedText type="small" themeColor="textSecondary">
                 DYSTANS CAŁKOWITY
               </ThemedText>
-              <ThemedText style={styles.largeValue}>124.5 km</ThemedText>
+              <ThemedText style={styles.largeValue}>
+                {stats?.totalDistance.toFixed(1) || '0.0'} km
+              </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                +12% od osi. typ.
+                Sumaryczny wynik Twoich treningów
               </ThemedText>
             </ThemedView>
 
@@ -51,9 +88,11 @@ export default function StatsScreen() {
               <ThemedText type="small" themeColor="textSecondary">
                 SPALANE KALORIE
               </ThemedText>
-              <ThemedText style={styles.largeValue}>4,520 kcal</ThemedText>
+              <ThemedText style={styles.largeValue}>
+                {stats?.totalCalories.toLocaleString() || '0'} kcal
+              </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.positive}>
-                🔥 Intensywny trening
+                🔥 {stats && stats.totalCalories > 1000 ? 'Intensywny trening' : 'Początek drogi'}
               </ThemedText>
             </ThemedView>
           </ThemedView>
@@ -66,76 +105,61 @@ export default function StatsScreen() {
 
         <Card>
           <ThemedView style={styles.trainingBreakdown}>
+            {/* Pływanie */}
             <ThemedView style={styles.breakdownItem}>
               <View style={[styles.colorDot, { backgroundColor: '#3B82F6' }]} />
               <ThemedText type="small">Pływanie</ThemedText>
               <ThemedText type="small" style={styles.percentage}>
-                30%
+                {getPercentage(stats?.trainingsByType.swimming || 0)}%
               </ThemedText>
             </ThemedView>
             <ThemedView style={styles.progressBar}>
-              <View style={[styles.progress, { width: '30%', backgroundColor: '#3B82F6' }]} />
+              <View style={[styles.progress, { width: `${getPercentage(stats?.trainingsByType.swimming || 0)}%`, backgroundColor: '#3B82F6' }]} />
             </ThemedView>
 
+            {/* Rower */}
             <ThemedView style={styles.breakdownItem}>
               <View style={[styles.colorDot, { backgroundColor: '#10B981' }]} />
               <ThemedText type="small">Rower</ThemedText>
               <ThemedText type="small" style={styles.percentage}>
-                45%
+                {getPercentage(stats?.trainingsByType.cycling || 0)}%
               </ThemedText>
             </ThemedView>
             <ThemedView style={styles.progressBar}>
-              <View style={[styles.progress, { width: '45%', backgroundColor: '#10B981' }]} />
+              <View style={[styles.progress, { width: `${getPercentage(stats?.trainingsByType.cycling || 0)}%`, backgroundColor: '#10B981' }]} />
             </ThemedView>
 
+            {/* Bieg */}
             <ThemedView style={styles.breakdownItem}>
               <View style={[styles.colorDot, { backgroundColor: '#F97316' }]} />
               <ThemedText type="small">Bieg</ThemedText>
               <ThemedText type="small" style={styles.percentage}>
-                55%
+                {getPercentage(stats?.trainingsByType.running || 0)}%
               </ThemedText>
             </ThemedView>
             <ThemedView style={styles.progressBar}>
-              <View style={[styles.progress, { width: '55%', backgroundColor: '#F97316' }]} />
+              <View style={[styles.progress, { width: `${getPercentage(stats?.trainingsByType.running || 0)}%`, backgroundColor: '#F97316' }]} />
             </ThemedView>
           </ThemedView>
         </Card>
 
-        {/* Strefy Tętna */}
+        {/* Średnie Tętno */}
         <ThemedView style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Strefy Tętna (HR)</ThemedText>
+          <ThemedText style={styles.sectionTitle}>Średnie Tętno</ThemedText>
         </ThemedView>
 
         <Card>
           <ThemedView style={styles.heartRateZones}>
             <ThemedView style={styles.zoneItem}>
-              <ThemedText type="small">253</ThemedText>
+              <ThemedText style={styles.largeValue}>{Math.round(stats?.averageHeartRate || 0)}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                WZMACNIAJĄCA
-              </ThemedText>
-            </ThemedView>
-            <ThemedView style={styles.zoneItem}>
-              <ThemedText type="small">288</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                AEROWY
-              </ThemedText>
-            </ThemedView>
-            <ThemedView style={styles.zoneItem}>
-              <ThemedText type="small">1890</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                KARDIO
-              </ThemedText>
-            </ThemedView>
-            <ThemedView style={styles.zoneItem}>
-              <ThemedText type="small">224</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                MAKSYMALNY
+                ŚREDNIE BPM
               </ThemedText>
             </ThemedView>
           </ThemedView>
         </Card>
 
-        {/* Wygląd Charts */}
+        {/* Użycie Sprzętu */}
         <ThemedView style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Użycie Sprzętu</ThemedText>
         </ThemedView>
@@ -191,6 +215,8 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
+    backgroundColor: '#E0E1E6',
+    marginVertical: Spacing.two,
   },
   positive: {
     color: '#1DB954',
