@@ -1,6 +1,6 @@
-import { StyleSheet, ScrollView, Platform, View, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, ScrollView, Platform, View, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -9,14 +9,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TrainingTypeButton } from '@/components/ui/training-type-button';
 import { Spacing } from '@/constants/theme';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { apiService } from '@/services/api';
 
 export default function AddEntryScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ type?: string }>();
+  
   const [trainingType, setTrainingType] = useState<'swimming' | 'cycling' | 'running'>('running');
+
+  useEffect(() => {
+    if (params.type === 'swimming' || params.type === 'cycling' || params.type === 'running') {
+      setTrainingType(params.type);
+    }
+  }, [params.type]);
   const [title, setTitle] = useState('');
   const [duration, setDuration] = useState('');
   const [distance, setDistance] = useState('');

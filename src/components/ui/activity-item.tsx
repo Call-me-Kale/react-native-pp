@@ -1,10 +1,12 @@
 import { StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card } from '@/components/ui/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useTheme } from '@/hooks/use-theme';
 
 export interface ActivityItemProps {
-  icon: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
   title: string;
   distance: string;
   time: string;
@@ -18,13 +20,26 @@ export function ActivityItem({
   time,
   date,
 }: ActivityItemProps) {
+  const theme = useTheme();
+
+  const getIconColor = () => {
+    switch (icon) {
+      case 'waves': return '#3B82F6';
+      case 'bike': return '#10B981';
+      case 'run': return '#F97316';
+      default: return theme.text;
+    }
+  };
+
   return (
     <Card>
       <ThemedView style={styles.container}>
         <ThemedView style={styles.header}>
-          <ThemedText style={styles.icon}>{icon}</ThemedText>
+          <ThemedView style={[styles.iconContainer, { backgroundColor: theme.backgroundElement }]}>
+            <MaterialCommunityIcons name={icon} size={24} color={getIconColor()} />
+          </ThemedView>
           <ThemedView style={styles.titleContainer}>
-            <ThemedText type="small" style={styles.title}>
+            <ThemedText style={styles.title}>
               {title}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.date}>
@@ -35,18 +50,18 @@ export function ActivityItem({
         
         <ThemedView style={styles.stats}>
           <ThemedView style={styles.statItem}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Dystans
+            <ThemedText type="small" themeColor="textSecondary" style={styles.statLabel}>
+              DYSTANS
             </ThemedText>
-            <ThemedText type="small" style={styles.statValue}>
+            <ThemedText style={styles.statValue}>
               {distance}
             </ThemedText>
           </ThemedView>
           <ThemedView style={styles.statItem}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Czas
+            <ThemedText type="small" themeColor="textSecondary" style={styles.statLabel}>
+              CZAS
             </ThemedText>
-            <ThemedText type="small" style={styles.statValue}>
+            <ThemedText style={styles.statValue}>
               {time}
             </ThemedText>
           </ThemedView>
@@ -58,34 +73,47 @@ export function ActivityItem({
 
 const styles = StyleSheet.create({
   container: {
-    gap: 12,
+    gap: 16,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
   },
-  icon: {
-    fontSize: 28,
+  iconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   titleContainer: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   title: {
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
   },
   date: {
     fontSize: 12,
+    fontWeight: '500',
   },
   stats: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 24,
+    paddingLeft: 56, // Align with title
   },
   statItem: {
-    gap: 4,
+    gap: 2,
+  },
+  statLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   statValue: {
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

@@ -1,11 +1,12 @@
-import { StyleSheet, Pressable, ViewStyle } from 'react-native';
+import { StyleSheet, Pressable } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 
 export interface TrainingTypeButtonProps {
   type: 'swimming' | 'cycling' | 'running';
-  icon?: string;
+  icon?: keyof typeof MaterialCommunityIcons.glyphMap;
   onPress: () => void;
   selected?: boolean;
 }
@@ -14,17 +15,17 @@ const trainingConfig = {
   swimming: {
     label: 'Pływanie',
     color: '#3B82F6',
-    icon: '💧',
+    icon: 'waves' as const,
   },
   cycling: {
     label: 'Rower',
     color: '#10B981',
-    icon: '🚴',
+    icon: 'bike' as const,
   },
   running: {
     label: 'Bieg',
     color: '#F97316',
-    icon: '🏃',
+    icon: 'run' as const,
   },
 };
 
@@ -44,19 +45,19 @@ export function TrainingTypeButton({
         {
           backgroundColor: selected ? config.color : theme.backgroundElement,
           opacity: pressed ? 0.8 : 1,
+          borderColor: selected ? config.color : 'transparent',
+          borderWidth: 1,
         },
       ]}
     >
+      <MaterialCommunityIcons
+        name={config.icon}
+        size={36}
+        color={selected ? '#ffffff' : config.color}
+        style={styles.icon}
+      />
       <ThemedText
-        style={[
-          styles.icon,
-          { fontSize: 32 },
-        ]}
-      >
-        {config.icon}
-      </ThemedText>
-      <ThemedText
-        type="small"
+        type="defaultSemiBold"
         style={[
           styles.label,
           { color: selected ? '#ffffff' : theme.text },
@@ -70,17 +71,22 @@ export function TrainingTypeButton({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 120,
-    minWidth: '48%',
+    minHeight: 110,
+    flex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   icon: {
-    marginBottom: 8,
+    marginBottom: 10,
   },
   label: {
-    fontWeight: '600',
+    fontSize: 14,
   },
 });
