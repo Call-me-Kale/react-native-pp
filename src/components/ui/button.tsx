@@ -8,6 +8,8 @@ export interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'danger';
   disabled?: boolean;
   loading?: boolean;
+  style?: any;
+  textStyle?: any;
 }
 
 export function Button({
@@ -16,6 +18,8 @@ export function Button({
   variant = 'primary',
   disabled = false,
   loading = false,
+  style,
+  textStyle,
 }: ButtonProps) {
   const theme = useTheme();
 
@@ -52,10 +56,11 @@ export function Button({
           backgroundColor: getBackgroundColor(),
           opacity: pressed ? 0.8 : 1,
         },
+        style,
       ]}
     >
       <ThemedText
-        style={[styles.buttonText, { color: getTextColor() }]}
+        style={[styles.buttonText, { color: getTextColor() }, textStyle]}
         type="default"
       >
         {loading ? 'Loading...' : title}

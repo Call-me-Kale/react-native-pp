@@ -38,6 +38,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="trainings/index"
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="list-outline" color={color} size={28} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="add-entry"
         options={{
           tabBarIcon: ({ color, size }) => (
@@ -59,6 +67,24 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" color={color} size={28} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="equipment/index"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="equipment/[id]"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="trainings/[id]"
+        options={{
+          href: null,
         }}
       />
     </Tabs>
