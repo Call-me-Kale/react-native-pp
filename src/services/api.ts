@@ -34,6 +34,21 @@ export interface TrainingEntry {
   equipmentId?: string;
 }
 
+export interface EquipmentUsageStats {
+  id: string;
+  name: string;
+  category: string;
+  totalDistance: number;
+  trainingCount: number;
+  maxDistance: number;
+  wearPercentage: number;
+}
+
+export interface TrainingDayInfo {
+  date: string;
+  disciplines: string[];
+}
+
 export interface TrainingStats {
   totalDistance: number;
   totalCalories: number;
@@ -46,6 +61,8 @@ export interface TrainingStats {
     cycling: number;
     running: number;
   };
+  equipmentUsage: EquipmentUsageStats[];
+  trainingDates: TrainingDayInfo[];
 }
 
 export interface Equipment {
@@ -137,13 +154,22 @@ class ApiService {
     if (limit) params.append('limit', limit.toString());
     
     const queryString = params.toString();
-    const url = this.getUrl(`/trainings${queryString ? `?${queryString}` : ''}`);
+    const url = this.getUrl(`/trainings${queryString ? `?${queryString}` : ''}`, true);
 
     const response = await fetch(url, {
       method: 'GET',
       headers: this.getHeaders(),
     });
     return this.handleResponse<TrainingEntry[]>(response);
+  }
+
+  async getTrainingById(id: string): Promise<TrainingEntry> {
+    const url = this.getUrl(`/trainings/${id}`, true);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse<TrainingEntry>(response);
   }
 
   async createTrainingEntry(entry: Omit<TrainingEntry, 'id'>): Promise<TrainingEntry> {
@@ -155,24 +181,24 @@ class ApiService {
     return this.handleResponse<TrainingEntry>(response);
   }
 
+  async deleteTrainingEntry(id: string): Promise<void> {
+    const response = await fetch(this.getUrl(`/trainings/${id}`, true), {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    if (!response.ok && response.status !== 204) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `API Error: ${response.status}`);
+    }
+  }
+
   async updateTrainingEntry(id: string, entry: Partial<TrainingEntry>): Promise<TrainingEntry> {
-    const response = await fetch(this.getUrl(`/trainings/${id}`), {
+    const response = await fetch(this.getUrl(`/trainings/${id}`, true), {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify(entry),
     });
     return this.handleResponse<TrainingEntry>(response);
-  }
-
-  async deleteTrainingEntry(id: string): Promise<void> {
-    const response = await fetch(this.getUrl(`/trainings/${id}`), {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to delete training: ${response.status}`);
-    }
   }
 
   // Stats
@@ -182,19 +208,19 @@ class ApiService {
       headers: this.getHeaders(),
     });
     
-    const summary = await this.handleResponse<any>(response);
+    const summary = (await this.handleResponse<any>(response)) || {};
     
     const breakdownResponse = await fetch(this.getUrl('/stats/breakdown'), {
       method: 'GET',
       headers: this.getHeaders(),
     });
-    const breakdown = await this.handleResponse<any[]>(breakdownResponse);
+    const breakdown = (await this.handleResponse<any[]>(breakdownResponse)) || [];
 
     const heartRateResponse = await fetch(this.getUrl('/stats/heart-rate'), {
       method: 'GET',
       headers: this.getHeaders(),
     });
-    const heartRate = await this.handleResponse<any>(heartRateResponse);
+    const heartRate = (await this.handleResponse<any>(heartRateResponse)) || {};
 
     // Handle both camelCase and PascalCase from backend
     const totalDistance = summary.totalDistance ?? summary.TotalDistance ?? 0;
@@ -207,6 +233,11 @@ class ApiService {
 
     const averageHeartRate = heartRate.averageOverall ?? heartRate.AverageOverall ?? 0;
 
+    const findCount = (type: string) => {
+      const item = breakdown.find(b => (b.type || b.Type || '').toLowerCase() === type.toLowerCase());
+      return item?.count ?? item?.Count ?? 0;
+    };
+
     return {
       totalDistance,
       totalCalories,
@@ -215,10 +246,28 @@ class ApiService {
       todayCalories,
       averageHeartRate,
       trainingsByType: {
-        swimming: breakdown.find(b => (b.type || b.Type).toLowerCase() === 'swimming')?.count || breakdown.find(b => (b.type || b.Type).toLowerCase() === 'swimming')?.Count || 0,
-        cycling: breakdown.find(b => (b.type || b.Type).toLowerCase() === 'cycling')?.count || breakdown.find(b => (b.type || b.Type).toLowerCase() === 'cycling')?.Count || 0,
-        running: breakdown.find(b => (b.type || b.Type).toLowerCase() === 'running')?.count || breakdown.find(b => (b.type || b.Type).toLowerCase() === 'running')?.Count || 0,
+        swimming: findCount('swimming'),
+        cycling: findCount('cycling'),
+        running: findCount('running'),
       },
+      equipmentUsage: (summary.equipmentUsage ?? summary.EquipmentUsage ?? []).map((e: any) => ({
+        id: e.id ?? e.Id,
+        name: e.name ?? e.Name,
+        category: e.category ?? e.Category,
+        totalDistance: e.totalDistance ?? e.TotalDistance,
+        trainingCount: e.trainingCount ?? e.TrainingCount,
+        maxDistance: e.maxDistance ?? e.MaxDistance,
+        wearPercentage: e.wearPercentage ?? e.WearPercentage,
+      })),
+      trainingDates: (summary.trainingDates ?? summary.TrainingDates ?? []).map((d: any) => {
+        if (typeof d === 'string') {
+          return { date: d, disciplines: [] };
+        }
+        return {
+          date: d.date ?? d.Date ?? '',
+          disciplines: d.disciplines ?? d.Disciplines ?? []
+        };
+      }),
     };
   }
 

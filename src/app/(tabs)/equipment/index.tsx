@@ -114,7 +114,10 @@ export default function EquipmentScreen() {
           </ThemedView>
         ) : (
           equipment.map((item) => (
-            <Pressable key={item.id} onPress={() => router.push(`/equipment/${item.id}`)}>
+            <Pressable key={item.id} onPress={() => router.push({
+              pathname: "/equipment/[id]",
+              params: { id: item.id }
+            })}>
               <Card style={styles.equipmentCard}>
                 <ThemedView style={styles.cardHeader}>
                   <ThemedView style={[styles.iconContainer, { backgroundColor: theme.backgroundElement }]}>
