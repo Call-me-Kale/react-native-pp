@@ -29,7 +29,8 @@ Główny zasób aplikacji. Wszystkie rekordy muszą być przypisane do konkretne
   "distance": number, // w kilometrach
   "calories": number,
   "avgHeartRate": number,
-  "notes": "string"
+  "notes": "string",
+  "equipmentId": "string (optional)"
 }
 ```
 
@@ -41,7 +42,32 @@ Główny zasób aplikacji. Wszystkie rekordy muszą być przypisane do konkretne
 
 ---
 
-## 3. Analityka i Statystyki (`/stats`)
+## 3. Zarządzanie Sprzętem (`/Equipment`)
+Zasób pozwalający na śledzenie zużycia sprzętu (np. buty, rower).
+
+### Model `Equipment`:
+```json
+{
+  "id": "string",
+  "name": "string",
+  "category": "Shoes" | "Bike" | "Other",
+  "brand": "string",
+  "model": "string",
+  "purchaseDate": "ISO8601 String",
+  "totalDistance": number,
+  "notes": "string"
+}
+```
+
+### Endpointy:
+- **GET `/Equipment`**: Pobiera listę sprzętu użytkownika.
+- **POST `/Equipment`**: Dodaje nowy sprzęt.
+- **GET `/Equipment/{id}`**: Pobiera szczegóły konkretnego sprzętu (w tym aktualny `totalDistance`).
+- **GET `/Equipment/{id}/logs`**: Pobiera historię użycia sprzętu.
+
+---
+
+## 4. Analityka i Statystyki (`/stats`)
 Dane zagregowane dla ekranu Dashboard oraz Stats.
 
 - **GET `/stats/summary`**: Zwraca sumaryczne wartości (dystans, kalorie, czas) z podziałem na okresy (tydzień/miesiąc).

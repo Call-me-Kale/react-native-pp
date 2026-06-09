@@ -114,26 +114,28 @@ export default function EquipmentScreen() {
           </ThemedView>
         ) : (
           equipment.map((item) => (
-            <Card key={item.id} style={styles.equipmentCard}>
-              <ThemedView style={styles.cardHeader}>
-                <ThemedView style={[styles.iconContainer, { backgroundColor: theme.backgroundElement }]}>
-                  <MaterialCommunityIcons name={getCategoryIcon(item.category) as any} size={24} color="#1DB954" />
+            <Pressable key={item.id} onPress={() => router.push(`/equipment/${item.id}`)}>
+              <Card style={styles.equipmentCard}>
+                <ThemedView style={styles.cardHeader}>
+                  <ThemedView style={[styles.iconContainer, { backgroundColor: theme.backgroundElement }]}>
+                    <MaterialCommunityIcons name={getCategoryIcon(item.category) as any} size={24} color="#1DB954" />
+                  </ThemedView>
+                  <ThemedView style={styles.cardTitleContainer}>
+                    <ThemedText style={styles.itemName}>{item.name}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">{item.brand} {item.model}</ThemedText>
+                  </ThemedView>
                 </ThemedView>
-                <ThemedView style={styles.cardTitleContainer}>
-                  <ThemedText style={styles.itemName}>{item.name}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">{item.brand} {item.model}</ThemedText>
-                </ThemedView>
-              </ThemedView>
 
-              <ThemedView style={styles.usageContainer}>
-                <ThemedView style={styles.usageHeader}>
-                  <ThemedText type="small" themeColor="textSecondary">Aktualny przebieg</ThemedText>
-                  <ThemedText style={styles.currentMileage}>
-                    {item.totalDistance?.toFixed(1) || '0.0'} km
-                  </ThemedText>
+                <ThemedView style={styles.usageContainer}>
+                  <ThemedView style={styles.usageHeader}>
+                    <ThemedText type="small" themeColor="textSecondary">Aktualny przebieg</ThemedText>
+                    <ThemedText style={styles.currentMileage}>
+                      {item.totalDistance?.toFixed(1) || '0.0'} km
+                    </ThemedText>
+                  </ThemedView>
                 </ThemedView>
-              </ThemedView>
-            </Card>
+              </Card>
+            </Pressable>
           ))
         )}
       </ScrollView>

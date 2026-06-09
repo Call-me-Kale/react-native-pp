@@ -25,12 +25,13 @@ export interface TrainingEntry {
   id: string;
   type: 'swimming' | 'cycling' | 'running';
   title?: string;
-  date: string;
+  date: string; // ISO8601 String
   duration: number; // in minutes
   distance: number; // in km
   calories: number;
   avgHeartRate: number;
   notes?: string;
+  equipmentId?: string;
 }
 
 export interface TrainingStats {
@@ -223,15 +224,23 @@ class ApiService {
 
   // Equipment (isCoreModule: false as per specification)
   async getEquipment(): Promise<Equipment[]> {
-    const response = await fetch(this.getUrl('/equipment', false), {
+    const response = await fetch(this.getUrl('/Equipment', false), {
       method: 'GET',
       headers: this.getHeaders(),
     });
     return this.handleResponse<Equipment[]>(response);
   }
 
+  async getEquipmentById(id: string): Promise<Equipment> {
+    const response = await fetch(this.getUrl(`/Equipment/${id}`, false), {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse<Equipment>(response);
+  }
+
   async createEquipment(equipment: Omit<Equipment, 'id'>): Promise<Equipment> {
-    const response = await fetch(this.getUrl('/equipment', false), {
+    const response = await fetch(this.getUrl('/Equipment', false), {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(equipment),
@@ -240,7 +249,7 @@ class ApiService {
   }
 
   async updateEquipment(id: string, equipment: Partial<Equipment>): Promise<Equipment> {
-    const response = await fetch(this.getUrl(`/equipment/${id}`, false), {
+    const response = await fetch(this.getUrl(`/Equipment/${id}`, false), {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify(equipment),
@@ -249,7 +258,7 @@ class ApiService {
   }
 
   async deleteEquipment(id: string): Promise<void> {
-    const response = await fetch(this.getUrl(`/equipment/${id}`, false), {
+    const response = await fetch(this.getUrl(`/Equipment/${id}`, false), {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
@@ -259,7 +268,7 @@ class ApiService {
   }
 
   async getEquipmentLogs(id: string): Promise<EquipmentLog[]> {
-    const response = await fetch(this.getUrl(`/equipment/${id}/logs`, false), {
+    const response = await fetch(this.getUrl(`/Equipment/${id}/logs`, false), {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -267,7 +276,7 @@ class ApiService {
   }
 
   async addEquipmentLog(id: string, log: Omit<EquipmentLog, 'id' | 'equipmentId'>): Promise<EquipmentLog> {
-    const response = await fetch(this.getUrl(`/equipment/${id}/logs`, false), {
+    const response = await fetch(this.getUrl(`/Equipment/${id}/logs`, false), {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(log),
