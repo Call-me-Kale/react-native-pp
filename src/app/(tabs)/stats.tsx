@@ -1,14 +1,14 @@
 import { StyleSheet, ScrollView, Platform, View, RefreshControl, FlatList, Dimensions, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { Card } from '@/components/ui/card';
 import { Spacing } from '@/constants/theme';
-import { apiService, TrainingStats, TrainingDayInfo } from '@/services/api';
+import { apiService, TrainingStats, TrainingDayInfo, StreakData } from '@/services/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -23,14 +23,19 @@ export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const [stats, setStats] = useState<TrainingStats | null>(null);
+  const [streak, setStreak] = useState<StreakData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
 
   // Use the existing apiService functionality
   const fetchStats = useCallback(async () => {
     try {
-      const statsData = await apiService.getTrainingStats();
+      const [statsData, streakData] = await Promise.all([
+        apiService.getTrainingStats(),
+        apiService.getStreak(),
+      ]);
       setStats(statsData);
+      setStreak(streakData);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     }
@@ -112,6 +117,62 @@ export default function StatsScreen() {
             </ThemedView>
           </ThemedView>
         </Card>
+
+        {/* Seria Dni (Streak) */}
+        <ThemedView style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>Twoje Rekordy</ThemedText>
+        </ThemedView>
+
+        <Card>
+          <ThemedView style={styles.streakRecords}>
+            <ThemedView style={styles.recordItem}>
+              <ThemedText type="small" themeColor="textSecondary">AKTUALNA SERIA</ThemedText>
+              <ThemedView style={styles.recordValueRow}>
+                <MaterialCommunityIcons 
+                  name="fire" 
+                  size={24} 
+                  color={streak?.isActiveToday ? '#FF5722' : '#BDBDBD'} 
+                />
+                <ThemedText style={styles.recordValue}>{streak?.currentStreak || 0} dni</ThemedText>
+              </ThemedView>
+            </ThemedView>
+            <ThemedView style={styles.dividerVertical} />
+            <ThemedView style={styles.recordItem}>
+              <ThemedText type="small" themeColor="textSecondary">NAJDŁUŻSZA SERIA</ThemedText>
+              <ThemedView style={styles.recordValueRow}>
+                <Ionicons name="trophy" size={20} color="#FFD700" />
+                <ThemedText style={styles.recordValue}>{streak?.longestStreak || 0} dni</ThemedText>
+              </ThemedView>
+            </ThemedView>
+          </ThemedView>
+        </Card>
+
+        {streak && streak.ranges && streak.ranges.length > 0 && (
+          <>
+            <ThemedView style={styles.section}>
+              <ThemedText style={styles.sectionTitle}>Poprzednie Serie</ThemedText>
+            </ThemedView>
+            <Card>
+              <ThemedView style={styles.rangesList}>
+                {streak.ranges.slice(0, 5).map((range, index) => (
+                  <ThemedView key={index} style={styles.rangeItem}>
+                    <ThemedView style={styles.rangeInfo}>
+                      <ThemedText type="defaultSemiBold">
+                        {new Date(range.startDate).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })} - {new Date(range.endDate).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                      </ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {new Date(range.startDate).getFullYear()}
+                      </ThemedText>
+                    </ThemedView>
+                    <ThemedView style={styles.rangeBadge}>
+                      <ThemedText style={styles.rangeBadgeText}>{range.days} dni</ThemedText>
+                    </ThemedView>
+                  </ThemedView>
+                ))}
+              </ThemedView>
+            </Card>
+          </>
+        )}
 
         {/* Podział Treningu */}
         <ThemedView style={styles.section}>
@@ -239,7 +300,7 @@ export default function StatsScreen() {
             </ThemedView>
 
             <View style={{ paddingHorizontal: Spacing.four }}>
-              {renderCalendar(viewDate.getFullYear(), viewDate.getMonth(), stats?.trainingDates || [])}
+              {renderCalendar(viewDate.getFullYear(), viewDate.getMonth(), stats?.trainingDates || [], streak?.streakDates || [])}
             </View>
 
             <ThemedView style={styles.calendarLegend}>
@@ -255,6 +316,10 @@ export default function StatsScreen() {
                 <View style={[styles.dayDot, { backgroundColor: '#F97316', position: 'relative', bottom: 0 }]} />
                 <ThemedText type="small" themeColor="textSecondary">Bieg</ThemedText>
               </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.streakDayHighlight, { width: 10, height: 10, borderRadius: 5, borderWidth: 1 }]} />
+                <ThemedText type="small" themeColor="textSecondary">Seria</ThemedText>
+              </View>
             </ThemedView>
           </ThemedView>
         </Card>
@@ -263,7 +328,7 @@ export default function StatsScreen() {
   );
 }
 
-function renderCalendar(year: number, month: number, trainingDates: TrainingDayInfo[]) {
+function renderCalendar(year: number, month: number, trainingDates: TrainingDayInfo[], streakDates: string[]) {
   const today = new Date();
   
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -298,20 +363,26 @@ function renderCalendar(year: number, month: number, trainingDates: TrainingDayI
     
     const trainingDay = trainingDates.find(td => {
       if (!td || !td.date) return false;
-      // Extract YYYY-MM-DD from the string, handle both formats
       const tdDateOnly = td.date.split('T')[0];
       return tdDateOnly === dateStr;
     });
+
+    const isStreakDay = streakDates.some(sd => sd.split('T')[0] === dateStr);
     
     const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
     currentWeek.push(
-      <View key={`day-${d}`} style={[styles.calendarDay, isToday && styles.todayCircle]}>
+      <View key={`day-${d}`} style={[
+        styles.calendarDay, 
+        isToday && styles.todayCircle,
+        isStreakDay && styles.streakDayHighlight
+      ]}>
         <ThemedText 
           style={[
             styles.dayText, 
             !!trainingDay && styles.trainingDayText,
-            isToday && styles.todayText
+            isToday && styles.todayText,
+            isStreakDay && styles.streakDayText
           ]}
         >
           {String(d)}
@@ -383,6 +454,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0E1E6',
     marginVertical: Spacing.two,
   },
+  dividerVertical: {
+    width: 1,
+    backgroundColor: '#E0E1E6',
+    marginHorizontal: Spacing.two,
+  },
   positive: {
     color: '#1DB954',
   },
@@ -393,6 +469,49 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     marginBottom: Spacing.one,
+  },
+  streakRecords: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: Spacing.one,
+  },
+  recordItem: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  recordValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'transparent',
+  },
+  recordValue: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  rangesList: {
+    gap: Spacing.two,
+  },
+  rangeItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.one,
+    backgroundColor: 'transparent',
+  },
+  rangeInfo: {
+    backgroundColor: 'transparent',
+  },
+  rangeBadge: {
+    backgroundColor: '#FFE0B2',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  rangeBadgeText: {
+    color: '#E65100',
+    fontSize: 12,
+    fontWeight: '700',
   },
   trainingBreakdown: {
     gap: Spacing.three,
@@ -503,6 +622,15 @@ const styles = StyleSheet.create({
   },
   todayText: {
     color: '#1DB954',
+    fontWeight: '700',
+  },
+  streakDayHighlight: {
+    borderWidth: 1.5,
+    borderColor: '#FF5722',
+    borderRadius: 22.5,
+  },
+  streakDayText: {
+    color: '#FF5722',
     fontWeight: '700',
   },
   trainingDayText: {

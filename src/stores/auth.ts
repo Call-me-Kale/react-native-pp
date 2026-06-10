@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { apiService, LoginRequest } from '@/services/api';
+import { apiService, LoginRequest, RegisterRequest } from '@/services/api';
 
 export interface User {
   id: string;
@@ -15,6 +15,7 @@ export interface AuthState {
   isAuthenticated: boolean;
 
   login: (credentials: LoginRequest) => Promise<void>;
+  register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -46,18 +47,39 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
+  register: async (data: RegisterRequest) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await apiService.register(data);
+      apiService.setToken(response.token);
+      set({
+        user: response.user,
+        token: response.token,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Registration failed',
+        isLoading: false,
+      });
+      throw error;
+    }
+  },
+
   logout: async () => {
+    set({ isLoading: true });
     try {
       await apiService.logout();
+    } catch (error) {
+      console.error('Logout API call failed:', error);
+    } finally {
       set({
         user: null,
         token: null,
         isAuthenticated: false,
         error: null,
-      });
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Logout failed',
+        isLoading: false,
       });
     }
   },

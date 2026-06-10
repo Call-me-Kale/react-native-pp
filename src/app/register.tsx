@@ -3,9 +3,10 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter, useSegments } from "expo-router";
+import { useRouter } from "expo-router";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -15,19 +16,43 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/stores/auth";
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const router = useRouter();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { register, isLoading, error, clearError } = useAuthStore();
 
-  const handleLogin = async () => {
+  const handleRegister = async () => {
+    if (!username || !email || !password || !confirmPassword) {
+      Alert.alert("Błąd", "Wszystkie pola są wymagane.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Błąd", "Hasła nie są identyczne.");
+      return;
+    }
+
+    // Backend-suggested validation
+    const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      Alert.alert(
+        "Słabe hasło", 
+        "Hasło musi mieć min. 8 znaków, zawierać cyfrę i znak specjalny."
+      );
+      return;
+    }
+
     try {
       clearError();
-      await login({ username, password });
-      // Redirection is handled automatically by RootLayout's AuthGuard
+      await register({ username, email, password });
+      // Successfully registered users are auto-logged in by the store
+      // The RootLayout will pick up the state change and redirect
     } catch (err) {
       // Error is handled by store
     }
@@ -49,64 +74,70 @@ export default function LoginScreen() {
       bounces={false}
     >
       <ThemedView style={styles.container}>
-        {/* Header Section */}
         <ThemedView style={styles.headerSection}>
           <ThemedText style={styles.logo}>TriTrack</ThemedText>
           <ThemedText type="title" style={styles.title}>
-            TRITRACK
+            REJESTRACJA
           </ThemedText>
           <ThemedText
             type="subtitle"
             themeColor="textSecondary"
             style={styles.subtitle}
           >
-            Twój cel: Iron Man
+            Dołącz do społeczności triathlonistów
           </ThemedText>
         </ThemedView>
 
-        {/* Error Message */}
         {error && (
           <ThemedView style={[styles.errorContainer, { backgroundColor: '#FF6B6B' }]}>
             <ThemedText style={styles.errorText}>{error}</ThemedText>
           </ThemedView>
         )}
 
-        {/* Form Section */}
         <ThemedView style={styles.formSection}>
           <Input
-            label="Login"
-            placeholder="admin"
+            label="Nazwa użytkownika"
+            placeholder="np. jan_kowalski"
             value={username}
             onChangeText={setUsername}
           />
 
           <Input
+            label="Email"
+            placeholder="twoj@email.com"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+          />
+
+          <Input
             label="Hasło"
-            placeholder="••••••••"
+            placeholder="Min. 8 znaków, cyfra, znak specjalny"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
           />
 
+          <Input
+            label="Potwierdź hasło"
+            placeholder="Powtórz hasło"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+          />
+
           <Button
-            title="Zaloguj"
-            onPress={handleLogin}
+            title="Zarejestruj się"
+            onPress={handleRegister}
             loading={isLoading}
             variant="primary"
           />
 
           <Button
-            title="Nie masz konta? Zarejestruj się"
-            onPress={() => router.push("/register")}
+            title="Masz już konto? Zaloguj się"
+            onPress={() => router.back()}
             variant="secondary"
           />
-        </ThemedView>
-
-        {/* Help Text */}
-        <ThemedView style={styles.helpSection}>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.helpText}>
-            Demo: login: test, hasło: password
-          </ThemedText>
         </ThemedView>
       </ThemedView>
     </ScrollView>
@@ -156,13 +187,5 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#ffffff",
     fontWeight: "600",
-  },
-  helpSection: {
-    alignItems: "center",
-    marginTop: Spacing.two,
-  },
-  helpText: {
-    textAlign: "center",
-    fontSize: 12,
   },
 });

@@ -11,7 +11,18 @@ Aplikacja wykorzystuje tokeny Bearer (JWT) do autoryzacji zapytań.
 | :--- | :--- | :--- | :--- | :--- |
 | **POST** | `/auth/login` | Logowanie | `{"username", "password"}` | `{"token", "user": {id, username, email}}` |
 | **POST** | `/auth/register`| Rejestracja | `{"username", "email", "password"}` | `{"token", "user": {id, username, email}}` |
-| **GET** | `/auth/me` | Dane sesji | - | `{"id", "username", "email"}` |
+| **GET**  | `/auth/me` | Dane sesji | - | `{"id", "username", "email"}` |
+| **POST** | `/auth/logout` | Wylogowanie | - | - |
+| **POST** | `/auth/change-password` | Zmiana hasła | `{"currentPassword", "newPassword"}` | - |
+
+---
+
+### Instrukcja dla zespołu Backend dot. Zmiany Hasła:
+Endpoint `/auth/change-password` musi obsługiwać:
+1. **Walidację**: Sprawdzenie czy `currentPassword` zgadza się z zapisanym w bazie (hash).
+2. **Bezpieczeństwo**: Wymuszona autoryzacja tokenem Bearer.
+3. **Wymogi hasła**: Nowe hasło (`newPassword`) powinno mieć min. 8 znaków, zawierać cyfrę i znak specjalny.
+4. **Kodowanie**: Nowe hasło musi zostać zahashowane przed zapisem (np. BCrypt/Argon2).
 
 ---
 
@@ -73,6 +84,24 @@ Dane zagregowane dla ekranu Dashboard oraz Stats.
 - **GET `/stats/summary`**: Zwraca sumaryczne wartości (dystans, kalorie, czas) z podziałem na okresy (tydzień/miesiąc).
 - **GET `/stats/breakdown`**: Zwraca procentowy lub liczbowy podział na dyscypliny (pływanie/rower/bieg).
 - **GET `/stats/heart-rate`**: Zwraca statystyki stref tętna (np. czas spędzony w poszczególnych zakresach).
+- **GET `/stats/streak`**: Zwraca informacje o serii dni z aktywnością (streak).
+
+### Model `StreakData`:
+```json
+{
+  "currentStreak": number,
+  "longestStreak": number,
+  "isActiveToday": boolean,
+  "streakDates": ["ISO8601 String"],
+  "ranges": [
+    {
+      "startDate": "ISO8601 String",
+      "endDate": "ISO8601 String",
+      "days": number
+    }
+  ]
+}
+```
 
 ---
 

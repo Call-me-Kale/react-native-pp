@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/card';
 import { ActivityItem } from '@/components/ui/activity-item';
 import { TrainingTypeButton } from '@/components/ui/training-type-button';
 import { Spacing } from '@/constants/theme';
-import { apiService, TrainingEntry, TrainingStats } from '@/services/api';
+import { apiService, TrainingEntry, TrainingStats, StreakData } from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 
 export default function HomeScreen() {
@@ -21,16 +21,19 @@ export default function HomeScreen() {
   const { user } = useAuthStore();
 
   const [stats, setStats] = useState<TrainingStats | null>(null);
+  const [streak, setStreak] = useState<StreakData | null>(null);
   const [latestTraining, setLatestTraining] = useState<TrainingEntry | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const [statsData, entries] = await Promise.all([
+      const [statsData, streakData, entries] = await Promise.all([
         apiService.getTrainingStats(),
+        apiService.getStreak(),
         apiService.getTrainingEntries(undefined, 1),
       ]);
       setStats(statsData);
+      setStreak(streakData);
       if (entries.length > 0) {
         setLatestTraining(entries[0]);
       } else {
@@ -79,6 +82,55 @@ export default function HomeScreen() {
     }
   };
 
+  const renderMiniCalendar = () => {
+    const days = [];
+    const today = new Date();
+    const primaryColor = '#1DB954';
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const hasTraining = stats?.trainingDates.some(td => td.date.split('T')[0] === dateStr);
+      const isStreakDay = streak?.streakDates.some(sd => sd.split('T')[0] === dateStr);
+      const isToday = i === 0;
+      
+      days.push(
+        <ThemedView key={dateStr} style={styles.miniDayContainer}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.miniDayLabel}>
+            {date.toLocaleDateString('pl-PL', { weekday: 'short' }).toUpperCase()}
+          </ThemedText>
+          <ThemedView 
+            style={[
+              styles.miniDayCircle,
+              { backgroundColor: theme.backgroundElement },
+              hasTraining && { backgroundColor: primaryColor },
+              isStreakDay && { borderColor: '#FF5722', borderWidth: 1.5 },
+              isToday && { borderColor: primaryColor, borderWidth: hasTraining ? 0 : 1.5 }
+            ]}
+          >
+            <ThemedText 
+              style={[
+                styles.miniDayText,
+                { color: theme.text },
+                hasTraining && { color: '#FFF' },
+                isStreakDay && !hasTraining && { color: '#FF5722' },
+                isToday && !hasTraining && { color: primaryColor }
+              ]}
+            >
+              {date.getDate()}
+            </ThemedText>
+          </ThemedView>
+          {hasTraining && (
+            <ThemedView style={styles.miniDayDot} />
+          )}
+        </ThemedView>
+      );
+    }
+    return days;
+  };
+
   return (
     <ScrollView
       style={[styles.scrollView, { backgroundColor: theme.background }]}
@@ -94,13 +146,41 @@ export default function HomeScreen() {
           <ThemedView style={styles.headerContent}>
             <ThemedText style={styles.greeting}>Cześć, {user?.username || 'Zawodnik'}!</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-              Gotowy na kolejny trening?
+              {streak?.isActiveToday 
+                ? 'Świetna robota dzisiaj!' 
+                : 'Gotowy na kolejny trening?'}
             </ThemedText>
           </ThemedView>
-          <ThemedView style={[styles.badgeContainer, { backgroundColor: theme.backgroundElement }]}>
-            <Ionicons name="trophy-outline" size={24} color="#FFD700" />
-          </ThemedView>
+          {streak && (
+            <ThemedView style={styles.streakContainer}>
+              <MaterialCommunityIcons 
+                name="fire" 
+                size={28} 
+                color={streak.isActiveToday ? '#FF5722' : '#BDBDBD'} 
+              />
+              <ThemedText style={styles.streakValue}>{streak.currentStreak}</ThemedText>
+            </ThemedView>
+          )}
         </ThemedView>
+
+        {/* Motivation Card */}
+        {streak && !streak.isActiveToday && streak.currentStreak > 0 && (
+          <Card style={[styles.motivationCard, { backgroundColor: '#FFF3E0', borderColor: '#FFE0B2' }]}>
+            <ThemedView style={styles.motivationContent}>
+              <MaterialCommunityIcons name="lightning-bolt" size={24} color="#F57C00" />
+              <ThemedText style={styles.motivationText}>
+                Nie pozwól, aby Twoja seria <ThemedText type="defaultSemiBold" style={{ color: '#E65100' }}>{streak.currentStreak} dni</ThemedText> treningów przepadła! Zrób coś dzisiaj!
+              </ThemedText>
+            </ThemedView>
+          </Card>
+        )}
+
+        {/* Mini Calendar */}
+        <Card style={styles.miniCalendarCard}>
+          <ThemedView style={styles.miniCalendarRow}>
+            {renderMiniCalendar()}
+          </ThemedView>
+        </Card>
 
         {/* Today Stats */}
         <Card style={styles.statsCard}>
@@ -228,17 +308,71 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '500',
   },
-  badgeContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+  },
+  streakValue: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  motivationCard: {
+    padding: Spacing.three,
+    borderWidth: 1,
+  },
+  motivationContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'transparent',
+  },
+  motivationText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#E65100',
+  },
+  miniCalendarCard: {
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.one,
+  },
+  miniCalendarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: 'transparent',
+  },
+  miniDayContainer: {
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  miniDayLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  miniDayCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+  },
+  miniDayText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  miniDayDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#FF5722',
+    marginTop: -2,
   },
   statsCard: {
     paddingVertical: Spacing.three,

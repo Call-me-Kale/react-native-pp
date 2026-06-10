@@ -12,6 +12,7 @@ import { Spacing } from '@/constants/theme';
 import { useAuthStore } from '@/stores/auth';
 import { apiService, TrainingStats } from '@/services/api';
 import { InfoModal } from '@/components/ui/modal';
+import { ChangePasswordModal } from '@/components/ui/change-password-modal';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -20,6 +21,7 @@ export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
   const [stats, setStats] = useState<TrainingStats | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -47,7 +49,11 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/');
+    // Redirection happens automatically via RootLayout because isAuthenticated changes to false
+  };
+
+  const handleChangePassword = () => {
+    setPasswordModalVisible(true);
   };
 
   const showComingSoon = () => {
@@ -112,28 +118,18 @@ export default function ProfileScreen() {
 
         {/* Settings */}
         <ThemedView style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Ustawienia</ThemedText>
+          <ThemedText style={styles.sectionTitle}>Ustawienia konta</ThemedText>
         </ThemedView>
 
-        <Card>
+        <Card style={styles.settingsCard}>
           <Button
             title="Zmień hasło"
-            onPress={showComingSoon}
+            onPress={handleChangePassword}
             variant="secondary"
           />
-        </Card>
-
-        <Card>
+          <ThemedView style={styles.buttonSpacer} />
           <Button
             title="Preferencje powiadomień"
-            onPress={showComingSoon}
-            variant="secondary"
-          />
-        </Card>
-
-        <Card>
-          <Button
-            title="Eksportuj dane"
             onPress={showComingSoon}
             variant="secondary"
           />
@@ -154,6 +150,11 @@ export default function ProfileScreen() {
         onClose={() => setModalVisible(false)}
         title="Funkcja niebawem"
         message="Pracujemy nad tym. Funkcja będzie dostępna już wkrótce!"
+      />
+
+      <ChangePasswordModal
+        visible={passwordModalVisible}
+        onClose={() => setPasswordModalVisible(false)}
       />
     </ScrollView>
   );
@@ -194,6 +195,12 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 18,
     fontWeight: '700',
+  },
+  settingsCard: {
+    gap: Spacing.two,
+  },
+  buttonSpacer: {
+    height: Spacing.two,
   },
   section: {
     marginTop: Spacing.two,

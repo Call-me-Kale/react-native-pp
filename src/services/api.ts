@@ -42,6 +42,7 @@ export interface EquipmentUsageStats {
   trainingCount: number;
   maxDistance: number;
   wearPercentage: number;
+  distanceSinceService: number; // New field
 }
 
 export interface TrainingDayInfo {
@@ -74,6 +75,8 @@ export interface Equipment {
   purchaseDate: string;
   notes?: string;
   totalDistance: number;
+  lastServiceDistance: number; // New field
+  serviceInterval: number; // New field
 }
 
 export interface EquipmentLog {
@@ -82,6 +85,25 @@ export interface EquipmentLog {
   description: string;
   distance: number;
   date: string;
+}
+
+export interface StreakRange {
+  startDate: string;
+  endDate: string;
+  days: number;
+}
+
+export interface StreakData {
+  currentStreak: number;
+  longestStreak: number;
+  isActiveToday: boolean;
+  streakDates: string[];
+  ranges: StreakRange[];
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
 }
 
 class ApiService {
@@ -144,7 +166,23 @@ class ApiService {
   }
 
   async logout(): Promise<void> {
-    this.clearToken();
+    try {
+      await fetch(this.getUrl('/auth/logout'), {
+        method: 'POST',
+        headers: this.getHeaders(),
+      });
+    } finally {
+      this.clearToken();
+    }
+  }
+
+  async changePassword(request: ChangePasswordRequest): Promise<void> {
+    const response = await fetch(this.getUrl('/auth/change-password'), {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(request),
+    });
+    return this.handleResponse(response);
   }
 
   // Training entries
@@ -258,6 +296,7 @@ class ApiService {
         trainingCount: e.trainingCount ?? e.TrainingCount,
         maxDistance: e.maxDistance ?? e.MaxDistance,
         wearPercentage: e.wearPercentage ?? e.WearPercentage,
+        distanceSinceService: e.distanceSinceService ?? e.DistanceSinceService ?? 0,
       })),
       trainingDates: (summary.trainingDates ?? summary.TrainingDates ?? []).map((d: any) => {
         if (typeof d === 'string') {
@@ -269,6 +308,14 @@ class ApiService {
         };
       }),
     };
+  }
+
+  async getStreak(): Promise<StreakData> {
+    const response = await fetch(this.getUrl('/stats/streak'), {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse<StreakData>(response);
   }
 
   // Equipment (isCoreModule: false as per specification)
@@ -316,6 +363,14 @@ class ApiService {
     }
   }
 
+  async resetService(id: string): Promise<any> {
+    const response = await fetch(this.getUrl(`/Equipment/${id}/reset-service`, false), {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
   async getEquipmentLogs(id: string): Promise<EquipmentLog[]> {
     const response = await fetch(this.getUrl(`/Equipment/${id}/logs`, false), {
       method: 'GET',
@@ -335,3 +390,4 @@ class ApiService {
 }
 
 export const apiService = new ApiService();
+

@@ -1,4 +1,4 @@
-import { StyleSheet, ScrollView, Pressable, RefreshControl, View } from 'react-native';
+import { StyleSheet, ScrollView, Pressable, RefreshControl, View, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useCallback, useEffect } from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Spacing } from '@/constants/theme';
 import { apiService, Equipment, EquipmentLog } from '@/services/api';
 
@@ -83,6 +84,85 @@ export default function EquipmentDetailsScreen() {
     );
   }
 
+  const handleResetService = async () => {
+    if (!equipment) return;
+    Alert.alert(
+      'Reset Serwisu',
+      `Czy na pewno chcesz zresetować licznik serwisu dla: ${equipment.name}?`,
+      [
+        { text: 'Anuluj', style: 'cancel' },
+        { 
+          text: 'Tak, zresetuj', 
+          onPress: async () => {
+            try {
+              await apiService.resetService(equipment.id);
+              fetchData();
+              Alert.alert('Sukces', 'Licznik serwisu został zresetowany.');
+            } catch (error: any) {
+              Alert.alert('Błąd', 'Nie udało się zresetować serwisu.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const renderServiceInfo = () => {
+    if (!equipment) return null;
+    const isServiceable = ['bike', 'shoes'].includes(equipment.category.toLowerCase());
+    if (!isServiceable) return null;
+
+    const distanceSinceService = equipment.totalDistance - equipment.lastServiceDistance;
+    const interval = equipment.serviceInterval || (equipment.category.toLowerCase() === 'bike' ? 5000 : 1000);
+    const progress = (distanceSinceService / interval) * 100;
+    const barColor = progress >= 100 ? '#FF5252' : '#1DB954';
+
+    return (
+      <Card style={styles.serviceCard}>
+        <ThemedView style={styles.serviceHeader}>
+          <ThemedText style={styles.sectionTitle}>Status Serwisowy</ThemedText>
+          <Button 
+            title="Zresetuj" 
+            onPress={handleResetService} 
+            variant="secondary"
+            // @ts-ignore
+            size="small"
+          />
+        </ThemedView>
+
+        <ThemedView style={styles.serviceStats}>
+          <ThemedView style={styles.serviceStatItem}>
+            <ThemedText type="small" themeColor="textSecondary">OD OSTATNIEGO</ThemedText>
+            <ThemedText style={[styles.serviceValue, { color: barColor }]}>{distanceSinceService.toFixed(1)} km</ThemedText>
+          </ThemedView>
+          <ThemedView style={styles.serviceStatItem}>
+            <ThemedText type="small" themeColor="textSecondary">INTERWAŁ</ThemedText>
+            <ThemedText style={styles.serviceValue}>{interval} km</ThemedText>
+          </ThemedView>
+        </ThemedView>
+
+        <ThemedView style={styles.progressBarBg}>
+          <ThemedView 
+            style={[
+              styles.progressBarFill, 
+              { 
+                width: `${Math.min(progress, 100)}%`, 
+                backgroundColor: barColor 
+              }
+            ]} 
+          />
+        </ThemedView>
+        
+        {progress >= 100 && (
+          <ThemedView style={styles.alertBox}>
+            <MaterialCommunityIcons name="alert-decagram" size={20} color="#FF5252" />
+            <ThemedText style={styles.alertTextLarge}>Wymagany przegląd serwisowy!</ThemedText>
+          </ThemedView>
+        )}
+      </Card>
+    );
+  };
+
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -112,7 +192,7 @@ export default function EquipmentDetailsScreen() {
 
           <ThemedView style={styles.statsGrid}>
             <ThemedView style={styles.statBox}>
-              <ThemedText type="small" themeColor="textSecondary">PRZEBIEG</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">PRZEBIEG CAŁKOWITY</ThemedText>
               <ThemedText style={styles.statValue}>{equipment.totalDistance.toFixed(1)} km</ThemedText>
             </ThemedView>
             <ThemedView style={styles.statBox}>
@@ -126,6 +206,8 @@ export default function EquipmentDetailsScreen() {
             <ThemedText style={styles.infoText}>{formatDate(equipment.purchaseDate)}</ThemedText>
           </ThemedView>
         </Card>
+
+        {renderServiceInfo()}
 
         {/* Usage Logs Section */}
         <ThemedView style={styles.sectionHeader}>
@@ -266,5 +348,52 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: '#1DB954',
+  },
+  serviceCard: {
+    gap: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#1DB954',
+  },
+  serviceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  serviceStats: {
+    flexDirection: 'row',
+    gap: 24,
+    backgroundColor: 'transparent',
+  },
+  serviceStatItem: {
+    gap: 4,
+    backgroundColor: 'transparent',
+  },
+  serviceValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  progressBarBg: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  alertBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFEBEE',
+    padding: 12,
+    borderRadius: 8,
+  },
+  alertTextLarge: {
+    color: '#FF5252',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });

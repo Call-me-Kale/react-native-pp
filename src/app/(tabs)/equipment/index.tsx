@@ -26,7 +26,8 @@ export default function EquipmentScreen() {
   const [category, setCategory] = useState('Bike');
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
-  const [totalDistance, setTotalDistance] = useState(''); // Updated to match BE name
+  const [totalDistance, setTotalDistance] = useState('');
+  const [serviceInterval, setServiceInterval] = useState('');
 
   const fetchEquipment = useCallback(async () => {
     try {
@@ -59,8 +60,10 @@ export default function EquipmentScreen() {
         category,
         brand,
         model,
-        totalDistance: parseFloat(totalDistance) || 0, // Sending initial distance
+        totalDistance: parseFloat(totalDistance) || 0,
+        serviceInterval: parseFloat(serviceInterval) || 0, // 0 means default on BE
         purchaseDate: new Date().toISOString(),
+        lastServiceDistance: parseFloat(totalDistance) || 0,
       });
       setIsModalVisible(false);
       resetForm();
@@ -71,12 +74,35 @@ export default function EquipmentScreen() {
     }
   };
 
+  const handleResetService = async (id: string, name: string) => {
+    Alert.alert(
+      'Reset Serwisu',
+      `Czy na pewno chcesz zresetować licznik serwisu dla: ${name}?`,
+      [
+        { text: 'Anuluj', style: 'cancel' },
+        { 
+          text: 'Tak, zresetuj', 
+          onPress: async () => {
+            try {
+              await apiService.resetService(id);
+              fetchEquipment();
+              Alert.alert('Sukces', 'Licznik serwisu został zresetowany.');
+            } catch (error: any) {
+              Alert.alert('Błąd', 'Nie udało się zresetować serwisu.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const resetForm = () => {
     setName('');
     setCategory('Bike');
     setBrand('');
     setModel('');
     setTotalDistance('');
+    setServiceInterval('');
   };
 
   const getCategoryIcon = (cat: string) => {
@@ -85,6 +111,41 @@ export default function EquipmentScreen() {
       case 'shoes': return 'run';
       default: return 'wrench';
     }
+  };
+
+  const renderServiceBar = (item: Equipment) => {
+    const isServiceable = ['bike', 'shoes'].includes(item.category.toLowerCase());
+    if (!isServiceable) return null;
+
+    const distanceSinceService = item.totalDistance - item.lastServiceDistance;
+    const interval = item.serviceInterval || (item.category.toLowerCase() === 'bike' ? 5000 : 1000);
+    const progress = (distanceSinceService / interval) * 100;
+    const barColor = progress >= 100 ? '#FF5252' : '#1DB954';
+
+    return (
+      <ThemedView style={styles.serviceSection}>
+        <ThemedView style={styles.serviceHeader}>
+          <ThemedText type="small" themeColor="textSecondary">Serwis: {distanceSinceService.toFixed(0)} / {interval} km</ThemedText>
+          <Pressable onPress={() => handleResetService(item.id, item.name)} style={styles.resetIcon}>
+            <MaterialCommunityIcons name="wrench-clock" size={18} color={theme.textSecondary} />
+          </Pressable>
+        </ThemedView>
+        <ThemedView style={styles.progressBarBg}>
+          <ThemedView 
+            style={[
+              styles.progressBarFill, 
+              { 
+                width: `${Math.min(progress, 100)}%`, 
+                backgroundColor: barColor 
+              }
+            ]} 
+          />
+        </ThemedView>
+        {progress >= 100 && (
+          <ThemedText style={styles.alertText}>Wymagany przegląd!</ThemedText>
+        )}
+      </ThemedView>
+    );
   };
 
   return (
@@ -124,19 +185,15 @@ export default function EquipmentScreen() {
                     <MaterialCommunityIcons name={getCategoryIcon(item.category) as any} size={24} color="#1DB954" />
                   </ThemedView>
                   <ThemedView style={styles.cardTitleContainer}>
-                    <ThemedText style={styles.itemName}>{item.name}</ThemedText>
+                    <ThemedView style={styles.nameRow}>
+                      <ThemedText style={styles.itemName}>{item.name}</ThemedText>
+                      <ThemedText style={styles.totalMileage}>{item.totalDistance.toFixed(0)} km</ThemedText>
+                    </ThemedView>
                     <ThemedText type="small" themeColor="textSecondary">{item.brand} {item.model}</ThemedText>
                   </ThemedView>
                 </ThemedView>
 
-                <ThemedView style={styles.usageContainer}>
-                  <ThemedView style={styles.usageHeader}>
-                    <ThemedText type="small" themeColor="textSecondary">Aktualny przebieg</ThemedText>
-                    <ThemedText style={styles.currentMileage}>
-                      {item.totalDistance?.toFixed(1) || '0.0'} km
-                    </ThemedText>
-                  </ThemedView>
-                </ThemedView>
+                {renderServiceBar(item)}
               </Card>
             </Pressable>
           ))
@@ -188,14 +245,24 @@ export default function EquipmentScreen() {
               value={model}
               onChangeText={setModel}
             />
-            <TextInput
-              style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]}
-              placeholder="Aktualny przebieg (km)"
-              placeholderTextColor={theme.textSecondary}
-              keyboardType="numeric"
-              value={totalDistance}
-              onChangeText={setTotalDistance}
-            />
+            <ThemedView style={styles.row}>
+              <TextInput
+                style={[styles.input, { flex: 1, color: theme.text, borderColor: theme.backgroundElement }]}
+                placeholder="Przebieg (km)"
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="numeric"
+                value={totalDistance}
+                onChangeText={setTotalDistance}
+              />
+              <TextInput
+                style={[styles.input, { flex: 1, color: theme.text, borderColor: theme.backgroundElement }]}
+                placeholder="Interwał (km)"
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="numeric"
+                value={serviceInterval}
+                onChangeText={setServiceInterval}
+              />
+            </ThemedView>
 
             <ThemedView style={styles.modalButtons}>
               <Button title="Anuluj" variant="secondary" onPress={() => setIsModalVisible(false)} />
@@ -236,7 +303,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   equipmentCard: {
-    gap: 16,
+    gap: 12,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -252,26 +319,52 @@ const styles = StyleSheet.create({
   },
   cardTitleContainer: {
     flex: 1,
+    gap: 2,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   itemName: {
     fontSize: 16,
     fontWeight: '700',
   },
-  usageContainer: {
-    marginTop: 4,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
+  totalMileage: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1DB954',
   },
-  usageHeader: {
+  serviceSection: {
+    marginTop: 4,
+    gap: 8,
+    backgroundColor: 'transparent',
+  },
+  serviceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
-  currentMileage: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1DB954',
+  resetIcon: {
+    padding: 4,
+  },
+  progressBarBg: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  alertText: {
+    color: '#FF5252',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'right',
   },
   emptyContainer: {
     flex: 1,
@@ -307,9 +400,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
   },
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+    backgroundColor: 'transparent',
+  },
   categoryRow: {
     flexDirection: 'row',
     gap: 8,
+    backgroundColor: 'transparent',
   },
   categoryChip: {
     paddingVertical: 8,
@@ -320,5 +419,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginTop: 8,
+    backgroundColor: 'transparent',
   },
 });
+
