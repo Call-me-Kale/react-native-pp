@@ -224,7 +224,6 @@ export default function HomeScreen() {
             style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
           >
             <ActivityItem
-              // @ts-expect-error
               icon={getTrainingIcon(latestTraining.type)}
               title={latestTraining.title || (latestTraining.type.charAt(0).toUpperCase() + latestTraining.type.slice(1))}
               distance={`${latestTraining.distance} km`}

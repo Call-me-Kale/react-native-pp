@@ -1,11 +1,5 @@
 import { create } from 'zustand';
-import { apiService, LoginRequest, RegisterRequest } from '@/services/api';
-
-export interface User {
-  id: string;
-  username: string;
-  email?: string;
-}
+import { apiService, LoginRequest, RegisterRequest, User } from '@/services/api';
 
 export interface AuthState {
   user: User | null;
@@ -19,6 +13,7 @@ export interface AuthState {
   logout: () => Promise<void>;
   clearError: () => void;
 }
+
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,

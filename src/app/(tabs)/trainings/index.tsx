@@ -100,7 +100,6 @@ export default function TrainingsScreen() {
                 style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
               >
                 <ActivityItem
-                  // @ts-expect-error
                   icon={getTrainingIcon(item.type)}
                   title={item.title || (item.type.charAt(0).toUpperCase() + item.type.slice(1))}
                   distance={`${item.distance} km`}

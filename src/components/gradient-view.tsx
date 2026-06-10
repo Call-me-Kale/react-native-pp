@@ -11,9 +11,9 @@ export function GradientView({ children, style, ...props }: GradientViewProps) {
   const theme = useTheme();
   
   // Define light/dark gradients based on theme
-  const colors = theme.background === '#ffffff' 
-    ? ['#F8F9FA', '#E9ECEF'] // Light mode gradient
-    : ['#1A1B1E', '#101113']; // Dark mode gradient
+  const colors = (theme.background === '#ffffff' 
+    ? ['#F8F9FA', '#E9ECEF'] 
+    : ['#1A1B1E', '#101113']) as [string, string, ...string[]];
 
   return (
     <LinearGradient

@@ -1,3 +1,20 @@
+import { z } from 'zod';
+import { 
+  LoginResponseSchema, 
+  TrainingEntrySchema, 
+  TrainingEntryListSchema,
+  TrainingStatsSchema,
+  EquipmentSchema,
+  EquipmentListSchema,
+  EquipmentLogListSchema,
+  EquipmentLogSchema,
+  StreakDataSchema,
+  UserSchema,
+  TrainingDayInfoSchema,
+  EquipmentUsageStatsSchema,
+  StreakRangeSchema
+} from './schemas';
+
 // API Configuration
 // For local development on Android emulator use 'http://10.0.2.2:5204'
 // For iOS simulator or web use 'http://localhost:5204'
@@ -12,94 +29,16 @@ export interface RegisterRequest extends LoginRequest {
   email: string;
 }
 
-export interface LoginResponse {
-  token: string;
-  user: {
-    id: string;
-    username: string;
-    email?: string;
-  };
-}
-
-export interface TrainingEntry {
-  id: string;
-  type: 'swimming' | 'cycling' | 'running';
-  title?: string;
-  date: string; // ISO8601 String
-  duration: number; // in minutes
-  distance: number; // in km
-  calories: number;
-  avgHeartRate: number;
-  notes?: string;
-  equipmentId?: string;
-}
-
-export interface EquipmentUsageStats {
-  id: string;
-  name: string;
-  category: string;
-  totalDistance: number;
-  trainingCount: number;
-  maxDistance: number;
-  wearPercentage: number;
-  distanceSinceService: number; // New field
-}
-
-export interface TrainingDayInfo {
-  date: string;
-  disciplines: string[];
-}
-
-export interface TrainingStats {
-  totalDistance: number;
-  totalCalories: number;
-  totalDuration: number; // in minutes
-  todayDistance: number;
-  todayCalories: number;
-  averageHeartRate: number;
-  trainingsByType: {
-    swimming: number;
-    cycling: number;
-    running: number;
-  };
-  equipmentUsage: EquipmentUsageStats[];
-  trainingDates: TrainingDayInfo[];
-}
-
-export interface Equipment {
-  id: string;
-  name: string;
-  category: string;
-  brand: string;
-  model: string;
-  purchaseDate: string;
-  notes?: string;
-  totalDistance: number;
-  lastServiceDistance: number; // New field
-  serviceInterval: number; // New field
-}
-
-export interface EquipmentLog {
-  id: string;
-  equipmentId: string;
-  description: string;
-  distance: number;
-  date: string;
-}
-
-export interface StreakRange {
-  startDate: string;
-  endDate: string;
-  days: number;
-}
-
-export interface StreakData {
-  currentStreak: number;
-  longestStreak: number;
-  isActiveToday: boolean;
-  streakDates: string[];
-  ranges: StreakRange[];
-}
+export type LoginResponse = z.infer<typeof LoginResponseSchema>;
+export type User = z.infer<typeof UserSchema>;
+export type TrainingEntry = z.infer<typeof TrainingEntrySchema>;
+export type EquipmentUsageStats = z.infer<typeof EquipmentUsageStatsSchema>;
+export type TrainingDayInfo = z.infer<typeof TrainingDayInfoSchema>;
+export type TrainingStats = z.infer<typeof TrainingStatsSchema>;
+export type Equipment = z.infer<typeof EquipmentSchema>;
+export type EquipmentLog = z.infer<typeof EquipmentLogSchema>;
+export type StreakRange = z.infer<typeof StreakRangeSchema>;
+export type StreakData = z.infer<typeof StreakDataSchema>;
 
 export interface ChangePasswordRequest {
   currentPassword: string;
@@ -138,12 +77,31 @@ class ApiService {
     return `${BASE_URL}${prefix}${path}`;
   }
 
-  private async handleResponse<T>(response: Response): Promise<T> {
+  private async handleResponse<T>(response: Response, schema?: z.ZodType<T>): Promise<T> {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || `API Error: ${response.status} ${response.statusText}`);
     }
-    return response.json() as Promise<T>;
+    const data = await response.json();
+    
+    if (schema) {
+      try {
+        const validatedData = schema.parse(data);
+        console.log('API Validation Success:', {
+          path: response.url.split('/api').pop() || response.url,
+          data: validatedData
+        });
+        return validatedData;
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          console.error('API Validation Error:', error.issues);
+          console.error('Data that failed validation:', data);
+        }
+        throw error;
+      }
+    }
+    
+    return data as T;
   }
 
   // Authentication
@@ -153,7 +111,7 @@ class ApiService {
       headers: this.getHeaders(),
       body: JSON.stringify(credentials),
     });
-    return this.handleResponse<LoginResponse>(response);
+    return this.handleResponse(response, LoginResponseSchema);
   }
 
   async register(data: RegisterRequest): Promise<LoginResponse> {
@@ -162,7 +120,7 @@ class ApiService {
       headers: this.getHeaders(),
       body: JSON.stringify(data),
     });
-    return this.handleResponse<LoginResponse>(response);
+    return this.handleResponse(response, LoginResponseSchema);
   }
 
   async logout(): Promise<void> {
@@ -198,7 +156,7 @@ class ApiService {
       method: 'GET',
       headers: this.getHeaders(),
     });
-    return this.handleResponse<TrainingEntry[]>(response);
+    return this.handleResponse(response, TrainingEntryListSchema);
   }
 
   async getTrainingById(id: string): Promise<TrainingEntry> {
@@ -207,7 +165,7 @@ class ApiService {
       method: 'GET',
       headers: this.getHeaders(),
     });
-    return this.handleResponse<TrainingEntry>(response);
+    return this.handleResponse(response, TrainingEntrySchema);
   }
 
   async createTrainingEntry(entry: Omit<TrainingEntry, 'id'>): Promise<TrainingEntry> {
@@ -216,7 +174,7 @@ class ApiService {
       headers: this.getHeaders(),
       body: JSON.stringify(entry),
     });
-    return this.handleResponse<TrainingEntry>(response);
+    return this.handleResponse(response, TrainingEntrySchema);
   }
 
   async deleteTrainingEntry(id: string): Promise<void> {
@@ -236,7 +194,7 @@ class ApiService {
       headers: this.getHeaders(),
       body: JSON.stringify(entry),
     });
-    return this.handleResponse<TrainingEntry>(response);
+    return this.handleResponse(response, TrainingEntrySchema);
   }
 
   // Stats
@@ -276,7 +234,7 @@ class ApiService {
       return item?.count ?? item?.Count ?? 0;
     };
 
-    return {
+    const stats: TrainingStats = {
       totalDistance,
       totalCalories,
       totalDuration,
@@ -308,6 +266,8 @@ class ApiService {
         };
       }),
     };
+
+    return TrainingStatsSchema.parse(stats);
   }
 
   async getStreak(): Promise<StreakData> {
@@ -315,7 +275,7 @@ class ApiService {
       method: 'GET',
       headers: this.getHeaders(),
     });
-    return this.handleResponse<StreakData>(response);
+    return this.handleResponse(response, StreakDataSchema);
   }
 
   // Equipment (isCoreModule: false as per specification)
@@ -324,7 +284,7 @@ class ApiService {
       method: 'GET',
       headers: this.getHeaders(),
     });
-    return this.handleResponse<Equipment[]>(response);
+    return this.handleResponse(response, EquipmentListSchema);
   }
 
   async getEquipmentById(id: string): Promise<Equipment> {
@@ -332,7 +292,7 @@ class ApiService {
       method: 'GET',
       headers: this.getHeaders(),
     });
-    return this.handleResponse<Equipment>(response);
+    return this.handleResponse(response, EquipmentSchema);
   }
 
   async createEquipment(equipment: Omit<Equipment, 'id'>): Promise<Equipment> {
@@ -341,7 +301,7 @@ class ApiService {
       headers: this.getHeaders(),
       body: JSON.stringify(equipment),
     });
-    return this.handleResponse<Equipment>(response);
+    return this.handleResponse(response, EquipmentSchema);
   }
 
   async updateEquipment(id: string, equipment: Partial<Equipment>): Promise<Equipment> {
@@ -350,7 +310,7 @@ class ApiService {
       headers: this.getHeaders(),
       body: JSON.stringify(equipment),
     });
-    return this.handleResponse<Equipment>(response);
+    return this.handleResponse(response, EquipmentSchema);
   }
 
   async deleteEquipment(id: string): Promise<void> {
@@ -376,7 +336,7 @@ class ApiService {
       method: 'GET',
       headers: this.getHeaders(),
     });
-    return this.handleResponse<EquipmentLog[]>(response);
+    return this.handleResponse(response, EquipmentLogListSchema);
   }
 
   async addEquipmentLog(id: string, log: Omit<EquipmentLog, 'id' | 'equipmentId'>): Promise<EquipmentLog> {
@@ -385,9 +345,8 @@ class ApiService {
       headers: this.getHeaders(),
       body: JSON.stringify(log),
     });
-    return this.handleResponse<EquipmentLog>(response);
+    return this.handleResponse(response, EquipmentLogSchema);
   }
 }
 
 export const apiService = new ApiService();
-
