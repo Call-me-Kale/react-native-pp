@@ -63,19 +63,21 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    set({ isLoading: true });
+    // Clear state locally first to trigger immediate redirection
+    apiService.clearToken();
+    set({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    });
+
+    // Optionally call backend logout without blocking the UI redirection
     try {
       await apiService.logout();
     } catch (error) {
       console.error('Logout API call failed:', error);
-    } finally {
-      set({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        error: null,
-        isLoading: false,
-      });
     }
   },
 

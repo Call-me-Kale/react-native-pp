@@ -1,18 +1,14 @@
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import {
-  Platform,
-  ScrollView,
-  StyleSheet,
-} from "react-native";
+import { Platform, ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter, useSegments } from "expo-router";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 import { useAuthStore } from "@/stores/auth";
 
 export default function LoginScreen() {
@@ -51,7 +47,6 @@ export default function LoginScreen() {
       <ThemedView style={styles.container}>
         {/* Header Section */}
         <ThemedView style={styles.headerSection}>
-          <ThemedText style={styles.logo}>TriTrack</ThemedText>
           <ThemedText type="title" style={styles.title}>
             TRITRACK
           </ThemedText>
@@ -60,13 +55,15 @@ export default function LoginScreen() {
             themeColor="textSecondary"
             style={styles.subtitle}
           >
-            Twój cel: Iron Man
+            Przygotuj się do triathlonu z nami!
           </ThemedText>
         </ThemedView>
 
         {/* Error Message */}
         {error && (
-          <ThemedView style={[styles.errorContainer, { backgroundColor: '#FF6B6B' }]}>
+          <ThemedView
+            style={[styles.errorContainer, { backgroundColor: "#FF6B6B" }]}
+          >
             <ThemedText style={styles.errorText}>{error}</ThemedText>
           </ThemedView>
         )}
@@ -75,14 +72,14 @@ export default function LoginScreen() {
         <ThemedView style={styles.formSection}>
           <Input
             label="Login"
-            placeholder="admin"
+            placeholder="login..."
             value={username}
             onChangeText={setUsername}
           />
 
           <Input
             label="Hasło"
-            placeholder="••••••••"
+            placeholder="hasło..."
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -104,9 +101,11 @@ export default function LoginScreen() {
 
         {/* Help Text */}
         <ThemedView style={styles.helpSection}>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.helpText}>
-            Demo: login: test, hasło: password
-          </ThemedText>
+          <ThemedText
+            type="small"
+            themeColor="textSecondary"
+            style={styles.helpText}
+          ></ThemedText>
         </ThemedView>
       </ThemedView>
     </ScrollView>

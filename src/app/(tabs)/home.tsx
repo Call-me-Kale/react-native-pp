@@ -10,7 +10,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { Card } from '@/components/ui/card';
 import { ActivityItem } from '@/components/ui/activity-item';
 import { TrainingTypeButton } from '@/components/ui/training-type-button';
-import { Spacing } from '@/constants/theme';
+import { Spacing, BottomTabInset } from '@/constants/theme';
 import { apiService, TrainingEntry, TrainingStats, StreakData } from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 
@@ -59,7 +59,7 @@ export default function HomeScreen() {
   const containerPadding = {
     paddingHorizontal: Spacing.four,
     paddingTop: Math.max(insets.top, Spacing.four),
-    paddingBottom: insets.bottom + Spacing.four,
+    paddingBottom: insets.bottom + BottomTabInset + Spacing.four,
   };
 
   const formatDuration = (mins: number) => {
@@ -259,7 +259,7 @@ export default function HomeScreen() {
               onPress={() => router.push({ pathname: "add-entry", params: { type: 'cycling' } })}
             />
             <Pressable
-              onPress={() => router.push("/equipment" as any)}
+              onPress={() => router.push({ pathname: "trainings", params: { tab: 'equipment' } } as any)}
               style={({ pressed }) => [
                 styles.equipmentCard,
                 {
